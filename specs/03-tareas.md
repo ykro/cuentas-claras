@@ -93,7 +93,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 5: Creación y gestión de grupos y personas
+### - [x] Tarea 5: Creación y gestión de grupos y personas
 * **Objetivo:** Permitir crear una salida o viaje agregando a las personas con sus nombres y asignándoles IDs únicos internos.
 * **Archivos que crea o modifica:**
   * `src/services/groupsService.js`
