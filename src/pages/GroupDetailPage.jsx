@@ -21,14 +21,23 @@ import {
   updateExpense, 
   deleteExpense 
 } from '../services/expensesService.js';
+import { 
+  subscribeSettlements, 
+  createSettlement, 
+  deleteSettlement 
+} from '../services/settlementsService.js';
 import ParticipantList from '../components/ParticipantList.jsx';
 import ExpenseList from '../components/ExpenseList.jsx';
 import ExpenseForm from '../components/ExpenseForm.jsx';
+import SettlementList from '../components/SettlementList.jsx';
+import WhatsAppButton from '../components/WhatsAppButton.jsx';
+import { calculateBalances, simplifyDebts } from '../utils/debtSimplifier.js';
 import { toCents, toDollars, formatCurrency } from '../utils/formatters.js';
 
 export default function GroupDetailPage({ groupId, onBack }) {
   const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' | 'balances'
   
@@ -43,7 +52,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Suscripción al grupo
+  // Suscripción al grupo, gastos y pagos en tiempo real
   useEffect(() => {
     if (!groupId) return;
 
@@ -76,15 +85,35 @@ export default function GroupDetailPage({ groupId, onBack }) {
       }
     );
 
+    const unsubscribeSettlements = subscribeSettlements(
+      groupId,
+      (fetchedSettlements) => {
+        setSettlements(fetchedSettlements);
+      },
+      (err) => {
+        console.error('Error al obtener liquidaciones:', err);
+      }
+    );
+
     return () => {
       unsubscribeGroup();
       unsubscribeExpenses();
+      unsubscribeSettlements();
     };
   }, [groupId, onBack]);
 
-  // Total acumulado en centavos -> dólares
+  // Cálculos matemáticos puros
   const totalExpensesCents = expenses.reduce((sum, e) => sum + toCents(e.amount), 0);
   const totalExpensesDollars = toDollars(totalExpensesCents);
+
+  const participants = group?.participants || [];
+  const balances = calculateBalances(participants, expenses, settlements);
+  const transactions = simplifyDebts(participants, expenses, settlements);
+
+  // Identificar el balance de la organizadora (Tú)
+  const organizerParticipant = participants.find(p => p.isOwner);
+  const organizerBalance = balances.find(b => b.id === organizerParticipant?.id);
+  const organizerNetBalance = organizerBalance ? organizerBalance.netBalance : 0;
 
   // Guardar gasto (crear o actualizar)
   const handleSaveExpense = async (expenseData) => {
@@ -106,6 +135,26 @@ export default function GroupDetailPage({ groupId, onBack }) {
     await deleteExpense(groupId, selectedExpense.id);
     setIsExpenseFormOpen(false);
     setSelectedExpense(null);
+  };
+
+  // Registrar un pago directo
+  const handleMarkAsPaid = async (settlementData) => {
+    try {
+      await createSettlement(groupId, settlementData);
+    } catch (err) {
+      console.error('Error al registrar pago:', err);
+      setError(err.message || 'No se pudo registrar el pago.');
+    }
+  };
+
+  // Deshacer un pago directo
+  const handleUndoPayment = async (settlementId) => {
+    try {
+      await deleteSettlement(groupId, settlementId);
+    } catch (err) {
+      console.error('Error al deshacer pago:', err);
+      setError(err.message || 'No se pudo deshacer el pago.');
+    }
   };
 
   const handleSaveGroupName = async () => {
@@ -275,31 +324,71 @@ export default function GroupDetailPage({ groupId, onBack }) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col">
-            {/* Pestaña Saldos y Pagos (se potencia en Tarea 7) */}
-            <div className="mb-4">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Participantes del viaje ({group.participants.length})
-              </h2>
+          <div className="flex-1 flex flex-col space-y-4">
+            {/* Indicador grande y llamativo del balance del organizador */}
+            <div className={`rounded-2xl p-4 text-center border shadow-2xs ${
+              organizerNetBalance > 0
+                ? 'bg-emerald-50/90 border-emerald-200/90 text-emerald-900'
+                : organizerNetBalance < 0
+                  ? 'bg-red-50/90 border-red-200/90 text-red-900'
+                  : 'bg-white border-slate-200/80 text-slate-800'
+            }`}>
+              <span className="text-xs font-medium uppercase tracking-wider block opacity-75">
+                Tu saldo en este viaje
+              </span>
+
+              <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight mt-1">
+                {organizerNetBalance > 0 && `Te deben ${formatCurrency(organizerNetBalance)}`}
+                {organizerNetBalance < 0 && `Debes ${formatCurrency(Math.abs(organizerNetBalance))}`}
+                {organizerNetBalance === 0 && 'Estás al día ($0.00)'}
+              </div>
+            </div>
+
+            {/* Bloque: Quién le paga a quién */}
+            <SettlementList
+              transactions={transactions}
+              settlements={settlements}
+              participants={participants}
+              onMarkAsPaid={handleMarkAsPaid}
+              onUndoPayment={handleUndoPayment}
+            />
+
+            {/* Desglose individual de todos los participantes */}
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Balances individuales
+              </h3>
               <ul className="divide-y divide-slate-100 bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-2xs">
-                {group.participants.map((p) => (
-                  <li key={p.id} className="p-3.5 flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-800">{p.name}</span>
-                    {p.isOwner && (
-                      <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
-                        Organizadora
-                      </span>
-                    )}
+                {balances.map((b) => (
+                  <li key={b.id} className="p-3.5 flex items-center justify-between text-sm gap-2">
+                    <span className="font-medium text-slate-800 truncate">
+                      {b.name} {b.id === organizerParticipant?.id && '(Tú)'}
+                    </span>
+
+                    <span className={`font-mono font-bold text-sm shrink-0 ${
+                      b.netBalance > 0
+                        ? 'text-emerald-600'
+                        : b.netBalance < 0
+                          ? 'text-red-600'
+                          : 'text-slate-400 font-normal'
+                    }`}>
+                      {b.netBalance > 0 && `+${formatCurrency(b.netBalance)}`}
+                      {b.netBalance < 0 && formatCurrency(b.netBalance)}
+                      {b.netBalance === 0 && 'Al día'}
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="text-center p-6 bg-slate-100/60 rounded-xl border border-slate-200/60">
-              <Scale className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-              <p className="text-xs text-slate-500">
-                Los saldos y la opción de compartir por WhatsApp se calcularán en la Tarea 7.
-              </p>
+            {/* Botón Principal: Compartir por WhatsApp */}
+            <div className="pt-2 pb-4">
+              <WhatsAppButton
+                groupName={group.name}
+                totalExpenses={totalExpensesDollars}
+                balances={balances}
+                transactions={transactions}
+              />
             </div>
           </div>
         )}

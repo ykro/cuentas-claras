@@ -136,7 +136,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 7: Pestaña de saldos, registro de pagos y WhatsApp
+### - [x] Tarea 7: Pestaña de saldos, registro de pagos y WhatsApp
 * **Objetivo:** Visualizar de inmediato quién le paga a quién, ver tu balance neto en verde, registrar abonos y abrir WhatsApp con el mensaje prellenado.
 * **Archivos que crea o modifica:**
   * `src/services/settlementsService.js`
