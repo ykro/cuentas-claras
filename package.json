@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:emulators": "vite --mode emulator",
+    "emulators": "npx firebase emulators:start --only firestore",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run tests/debtSimplifier.test.js tests/whatsappFormatter.test.js",
