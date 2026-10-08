@@ -30,7 +30,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 2: Algoritmo de saldos, deudas y pruebas unitarias
+### - [x] Tarea 2: Algoritmo de saldos, deudas y pruebas unitarias
 * **Objetivo:** Implementar la lógica matemática que calcula cuánto debe cada persona, resuelve las 3 modalidades de división y minimiza las transferencias necesarias.
 * **Archivos que crea o modifica:**
   * `src/utils/debtSimplifier.js`
