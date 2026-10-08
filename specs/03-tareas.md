@@ -75,7 +75,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 4: Inicio de sesión con Google (Firebase Auth)
+### - [x] Tarea 4: Inicio de sesión con Google (Firebase Auth)
 * **Objetivo:** Permitir que la organizadora entre a la aplicación con su cuenta de Google con un solo clic y mantenga su sesión activa.
 * **Archivos que crea o modifica:**
   * `src/context/AuthContext.jsx`
