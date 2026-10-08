@@ -157,7 +157,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 8: Revisión final en el celular y reglas de seguridad
+### - [x] Tarea 8: Revisión final en el celular y reglas de seguridad
 * **Objetivo:** Optimizar la experiencia táctil en celulares, configurar el acceso directo en pantalla de inicio (PWA) y ejecutar una auditoría final completa.
 * **Archivos que crea o modifica:**
   * `public/manifest.json`
