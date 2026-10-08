@@ -111,7 +111,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 6: Registro de gastos con 3 tipos de división
+### - [x] Tarea 6: Registro de gastos con 3 tipos de división
 * **Objetivo:** Registrar consumos con montos en dólares grandes y claros, seleccionando quién pagó y eligiendo entre las 3 opciones de reparto.
 * **Archivos que crea o modifica:**
   * `src/services/expensesService.js`

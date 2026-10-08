@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  Users, 
   Settings, 
   Receipt, 
   Scale, 
@@ -9,30 +8,46 @@ import {
   Trash2, 
   X, 
   Loader2, 
-  AlertCircle,
-  Check
+  AlertCircle
 } from 'lucide-react';
 import { 
   subscribeGroup, 
   updateGroup, 
   deleteGroup 
 } from '../services/groupsService.js';
+import { 
+  subscribeExpenses, 
+  createExpense, 
+  updateExpense, 
+  deleteExpense 
+} from '../services/expensesService.js';
 import ParticipantList from '../components/ParticipantList.jsx';
+import ExpenseList from '../components/ExpenseList.jsx';
+import ExpenseForm from '../components/ExpenseForm.jsx';
+import { toCents, toDollars, formatCurrency } from '../utils/formatters.js';
 
 export default function GroupDetailPage({ groupId, onBack }) {
   const [group, setGroup] = useState(null);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' | 'balances'
+  
+  // Modales
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+
+  // Estados de edición del grupo
   const [editingName, setEditingName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Suscripción al grupo
   useEffect(() => {
     if (!groupId) return;
 
-    const unsubscribe = subscribeGroup(
+    const unsubscribeGroup = subscribeGroup(
       groupId,
       (fetchedGroup) => {
         if (!fetchedGroup) {
@@ -50,8 +65,48 @@ export default function GroupDetailPage({ groupId, onBack }) {
       }
     );
 
-    return () => unsubscribe();
+    const unsubscribeExpenses = subscribeExpenses(
+      groupId,
+      (fetchedExpenses) => {
+        setExpenses(fetchedExpenses);
+      },
+      (err) => {
+        console.error('Error al obtener gastos:', err);
+        setError('No pudimos cargar los gastos del grupo.');
+      }
+    );
+
+    return () => {
+      unsubscribeGroup();
+      unsubscribeExpenses();
+    };
   }, [groupId, onBack]);
+
+  // Total acumulado en centavos -> dólares
+  const totalExpensesCents = expenses.reduce((sum, e) => sum + toCents(e.amount), 0);
+  const totalExpensesDollars = toDollars(totalExpensesCents);
+
+  // Guardar gasto (crear o actualizar)
+  const handleSaveExpense = async (expenseData) => {
+    if (selectedExpense) {
+      await updateExpense(groupId, selectedExpense.id, expenseData);
+    } else {
+      await createExpense(groupId, expenseData);
+    }
+    setIsExpenseFormOpen(false);
+    setSelectedExpense(null);
+  };
+
+  // Eliminar gasto
+  const handleDeleteExpense = async () => {
+    if (!selectedExpense) return;
+    const confirmDelete = window.confirm('¿Segura de que quieres eliminar este gasto?');
+    if (!confirmDelete) return;
+
+    await deleteExpense(groupId, selectedExpense.id);
+    setIsExpenseFormOpen(false);
+    setSelectedExpense(null);
+  };
 
   const handleSaveGroupName = async () => {
     const trimmed = editingName.trim();
@@ -152,7 +207,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
             }`}
           >
             <Receipt className="w-4 h-4" />
-            <span>Gastos</span>
+            <span>Gastos ({expenses.length})</span>
           </button>
 
           <button
@@ -170,51 +225,65 @@ export default function GroupDetailPage({ groupId, onBack }) {
         </div>
       </div>
 
+      {/* Mensajes de error globales */}
+      {error && (
+        <div className="m-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Contenido de la pestaña activa */}
       <div className="flex-1 p-4 flex flex-col">
         {activeTab === 'expenses' ? (
           <div className="flex-1 flex flex-col">
             {/* Resumen superior de total */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 mb-4 text-center">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 mb-4 text-center shadow-2xs">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Total gastado
               </span>
-              <div className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight mt-0.5">
-                $0.00
+              <div className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-mono tracking-tight mt-1">
+                {formatCurrency(totalExpensesDollars)}
               </div>
             </div>
 
-            {/* Lista vacía de gastos (se completa en Tarea 6) */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border border-dashed border-slate-200 rounded-2xl bg-white/40 my-2">
-              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h2 className="text-sm font-semibold text-slate-700 mb-1">
-                No hay gastos anotados todavía
-              </h2>
-              <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-4">
-                En la siguiente tarea podrás registrar las compras del viaje y dividirlas.
-              </p>
+            {/* Botón de Acción Principal para Anotar Gasto */}
+            <div className="mb-4">
               <button
                 type="button"
-                className="min-h-[44px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl flex items-center gap-1.5 shadow-sm transition-colors opacity-90"
-                onClick={() => alert('El registro de gastos se habilita en la Tarea 6.')}
+                onClick={() => {
+                  setSelectedExpense(null);
+                  setIsExpenseFormOpen(true);
+                }}
+                className="w-full min-h-[48px] bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm text-sm"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
                 <span>Anotar Gasto</span>
               </button>
             </div>
+
+            {/* Lista de gastos */}
+            <div className="flex-1">
+              <ExpenseList
+                expenses={expenses}
+                participants={group.participants}
+                onEditExpense={(exp) => {
+                  setSelectedExpense(exp);
+                  setIsExpenseFormOpen(true);
+                }}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col">
-            {/* Lista de personas del grupo para ver cómo están compuestas */}
+            {/* Pestaña Saldos y Pagos (se potencia en Tarea 7) */}
             <div className="mb-4">
               <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                 Participantes del viaje ({group.participants.length})
               </h2>
-              <ul className="divide-y divide-slate-100 bg-white border border-slate-200/80 rounded-xl overflow-hidden">
+              <ul className="divide-y divide-slate-100 bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-2xs">
                 {group.participants.map((p) => (
-                  <li key={p.id} className="p-3 flex items-center justify-between text-sm">
+                  <li key={p.id} className="p-3.5 flex items-center justify-between text-sm">
                     <span className="font-medium text-slate-800">{p.name}</span>
                     {p.isOwner && (
                       <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
@@ -229,12 +298,26 @@ export default function GroupDetailPage({ groupId, onBack }) {
             <div className="text-center p-6 bg-slate-100/60 rounded-xl border border-slate-200/60">
               <Scale className="w-6 h-6 text-slate-400 mx-auto mb-2" />
               <p className="text-xs text-slate-500">
-                Los saldos y la opción de compartir por WhatsApp se calcularán cuando agregues gastos.
+                Los saldos y la opción de compartir por WhatsApp se calcularán en la Tarea 7.
               </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal de Anotar / Editar Gasto */}
+      {isExpenseFormOpen && (
+        <ExpenseForm
+          participants={group.participants}
+          expense={selectedExpense}
+          onSave={handleSaveExpense}
+          onDelete={handleDeleteExpense}
+          onClose={() => {
+            setIsExpenseFormOpen(false);
+            setSelectedExpense(null);
+          }}
+        />
+      )}
 
       {/* Modal / Panel de Configuración del Grupo y Personas */}
       {isSettingsOpen && (
@@ -254,13 +337,6 @@ export default function GroupDetailPage({ groupId, onBack }) {
             </div>
 
             <div className="flex-1 overflow-y-auto pt-4 space-y-5">
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
               {/* Editar nombre del grupo */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
