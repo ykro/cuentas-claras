@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Función auxiliar: verifica que el usuario haya iniciado sesión con Google
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Función auxiliar: verifica que el usuario autenticado sea el dueño del recurso
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Función auxiliar: verifica si el usuario es dueño del grupo padre
+    function isGroupOwner(groupId) {
+      return isAuthenticated() && 
+        request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId;
+    }
+
+    // Validación de integridad del grupo: al menos 2 personas
+    function isValidGroupData() {
+      return request.resource.data.participants is list &&
+             request.resource.data.participants.size() >= 2;
+    }
+
+    // Validación de integridad de gasto: monto positivo y al menos 1 persona asignada
+    function isValidExpenseData() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.splits is list &&
+             request.resource.data.splits.size() >= 1;
+    }
+
+    // Validación de integridad de pago: monto positivo y partes distintas (no auto-pago)
+    function isValidSettlementData() {
+      return request.resource.data.amount is number &&
+             request.resource.data.amount > 0 &&
+             request.resource.data.fromParticipantId is string &&
+             request.resource.data.toParticipantId is string &&
+             request.resource.data.fromParticipantId != request.resource.data.toParticipantId;
+    }
+
+    // 1. Colección de usuarios: cada quien solo gestiona su propio perfil
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // 2. Colección de grupos
+    match /groups/{groupId} {
+      // Leer: solo el creador del grupo
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+
+      // Crear: solo si es el dueño y contiene al menos 2 participantes
+      allow create: if isAuthenticated() && 
+                    request.resource.data.ownerId == request.auth.uid &&
+                    isValidGroupData();
+
+      // Actualizar: solo el dueño original y manteniendo al menos 2 participantes
+      allow update: if isAuthenticated() && 
+                    resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.ownerId == request.auth.uid &&
+                    isValidGroupData();
+
+      // Eliminar: solo el creador original
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+
+      // 3. Subcolección de gastos del grupo
+      match /expenses/{expenseId} {
+        allow read: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isValidExpenseData();
+        allow delete: if isGroupOwner(groupId);
+      }
+
+      // 4. Subcolección de pagos/liquidaciones del grupo
+      match /settlements/{settlementId} {
+        allow read: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isValidSettlementData();
+        allow delete: if isGroupOwner(groupId);
+      }
+    }
+  }
+}

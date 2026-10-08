@@ -52,7 +52,7 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
 
 ---
 
-### - [ ] Tarea 3: Configuración local de Firebase y despliegue de reglas
+### - [x] Tarea 3: Configuración local de Firebase y despliegue de reglas
 * **Objetivo:** Instalar las herramientas de Firebase dentro del proyecto, configurar las claves en `.env`, blindar la base de datos con reglas de seguridad y desplegarlas a la nube.
 * **Archivos que crea o modifica:**
   * `firebase.json`
