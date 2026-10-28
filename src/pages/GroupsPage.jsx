@@ -114,6 +114,9 @@ export default function GroupsPage({ onSelectGroup }) {
     }
   };
 
+  const activeGroups = groups.filter((g) => !g.isClosed);
+  const closedGroups = groups.filter((g) => g.isClosed === true);
+
   return (
     <div className="flex-1 w-full max-w-md mx-auto p-4 flex flex-col">
       {/* Encabezado */}
@@ -163,14 +166,46 @@ export default function GroupsPage({ onSelectGroup }) {
           </button>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {groups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              onClick={() => onSelectGroup && onSelectGroup(group.id)}
-            />
-          ))}
+        <div className="space-y-6">
+          {/* Lista de viajes activos */}
+          {activeGroups.length === 0 ? (
+            <div className="p-5 text-center border border-dashed border-slate-200 rounded-2xl bg-white/50">
+              <p className="text-sm font-medium text-slate-700">
+                No tienes viajes activos en este momento
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Todos tus viajes anteriores están en Viajes cerrados.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {activeGroups.map((group) => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  onClick={() => onSelectGroup && onSelectGroup(group.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Sección de Viajes cerrados al final de Mis Grupos */}
+          {closedGroups.length > 0 && (
+            <section className="pt-2 border-t border-slate-200/70">
+              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2.5">
+                Viajes cerrados
+              </h2>
+              <div className="space-y-2.5">
+                {closedGroups.map((group) => (
+                  <GroupCard
+                    key={group.id}
+                    group={group}
+                    onClick={() => onSelectGroup && onSelectGroup(group.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 

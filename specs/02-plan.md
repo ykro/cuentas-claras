@@ -122,13 +122,15 @@ Guarda el perfil básico de la organizadora autenticada.
 ```
 
 #### B. Documento de Grupo: `groups/{groupId}`
-Guarda la información general del viaje y la lista de sus participantes con sus IDs.
+Guarda la información general del viaje, su estado (abierto o cerrado), si tiene deudas pendientes y la lista de sus participantes con sus IDs.
 ```json
 {
   "id": "grp_98765",
   "name": "Viaje a Valle de Bravo",
   "ownerId": "google_uid_12345",
   "currency": "USD",
+  "isClosed": false,
+  "hasPendingDebts": false,
   "participants": [
     {
       "id": "part_usr_01",
@@ -150,6 +152,9 @@ Guarda la información general del viaje y la lista de sus participantes con sus
   "updatedAt": "2026-10-07T18:00:00Z"
 }
 ```
+*Compatibilidad con grupos anteriores:*
+* `isClosed` (booleano): `true` cuando el viaje está cerrado, `false` cuando está activo. Si un grupo creado con la versión anterior no tiene el campo `isClosed`, tanto la aplicación como las reglas de seguridad lo tratan como `false` (viaje abierto).
+* `hasPendingDebts` (booleano): `true` cuando alguien todavía debe dinero en el viaje, `false` cuando todos los participantes están a mano (\$0.00). La aplicación actualiza este campo al registrar o modificar gastos y pagos; si no existe en un grupo anterior sin deudas, se trata como `false`.
 
 #### C. Documento de Gasto: `groups/{groupId}/expenses/{expenseId}`
 Guarda un consumo específico, quién puso el dinero y cómo se reparte entre los IDs.
@@ -193,11 +198,12 @@ Las reglas de seguridad se ejecutan en los servidores de Google antes de permiti
 
 ### Explicación en lenguaje simple
 * Una persona solo puede entrar si está debidamente autenticada con Google.
-* La organizadora solo puede ver y editar sus propios grupos (donde su código de Google coincida con `ownerId`).
-* **Validación de grupo:** Un grupo no se puede crear ni actualizar si tiene menos de 2 participantes.
+* La organizadora solo puede ver y editar sus propios grupos (donde su código de Google coincida con `ownerId`), incluyendo cerrarlos y reabrirlos.
+* **Validación de grupo y bloqueo de cierre con deudas:** Un grupo no se puede crear ni actualizar si tiene menos de 2 participantes, y los campos `isClosed` y `hasPendingDebts` (si están presentes) deben ser booleanos. Además, la regla `canUpdateGroupCloseState()` impide cerrar un viaje (`isClosed == true`) si todavía existen deudas pendientes (`hasPendingDebts == true` en el grupo guardado o en la solicitud).
+* **Protección de viajes cerrados (modo solo lectura en el servidor):** Mientras un viaje esté cerrado (`isClosed == true`), las reglas de Firestore bloquean crear, editar o borrar gastos y pagos en ese grupo (`isGroupOpen(groupId)`), y también bloquean modificar los datos del grupo salvo para reabrirlo (`request.resource.data.get('isClosed', false) == false`). Los grupos con `isClosed == false` o los grupos antiguos que no tienen el campo `isClosed` se consideran abiertos.
 * **Validación de gastos:** No se puede guardar un gasto de \$0 ni negativo (`amount > 0`), y el gasto debe incluir obligatoriamente al menos una persona asignada en `splits`.
 * **Validación de pagos:** Un pago no puede ser de \$0 ni negativo (`amount > 0`), y una persona **no** puede pagarse a sí misma (`fromParticipantId != toParticipantId`).
-* Los gastos y pagos solo pueden crearse o modificarse si el grupo al que pertenecen es propiedad de quien hace la petición.
+* Los gastos y pagos solo pueden crearse o modificarse si el grupo al que pertenecen es propiedad de quien hace la petición y el viaje está abierto.
 
 ### Código Oficial de Reglas: `firestore.rules`
 
@@ -222,10 +228,27 @@ service cloud.firestore {
         request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId;
     }
 
-    // Validación de integridad del grupo: al menos 2 personas
+    // Función auxiliar: verifica que el grupo esté abierto (compatible con grupos anteriores sin isClosed)
+    function isGroupOpen(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data.get('isClosed', false) != true;
+    }
+
+    // Validación de integridad del grupo: al menos 2 personas y tipos booleanos en campos opcionales
     function isValidGroupData() {
       return request.resource.data.participants is list &&
-             request.resource.data.participants.size() >= 2;
+             request.resource.data.participants.size() >= 2 &&
+             (!('isClosed' in request.resource.data) || request.resource.data.isClosed is bool) &&
+             (!('hasPendingDebts' in request.resource.data) || request.resource.data.hasPendingDebts is bool);
+    }
+
+    // Validación de cierre y solo lectura del grupo:
+    // 1. Si el grupo ya está cerrado, solo permite actualizarlo para reabrirlo (isClosed == false).
+    // 2. Si se intenta cerrar (isClosed == true), exige que no haya deudas pendientes (hasPendingDebts == false).
+    function canUpdateGroupCloseState() {
+      return (resource.data.get('isClosed', false) != true || request.resource.data.get('isClosed', false) == false) &&
+             (request.resource.data.get('isClosed', false) != true ||
+              (resource.data.get('hasPendingDebts', false) == false &&
+               request.resource.data.get('hasPendingDebts', false) == false));
     }
 
     // Validación de integridad de gasto: monto positivo y al menos 1 persona asignada
@@ -255,16 +278,18 @@ service cloud.firestore {
       // Leer: solo el creador del grupo
       allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
 
-      // Crear: solo si es el dueño y contiene al menos 2 participantes
+      // Crear: solo si es el dueño, contiene al menos 2 participantes y nace abierto
       allow create: if isAuthenticated() && 
                     request.resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.get('isClosed', false) == false &&
                     isValidGroupData();
 
-      // Actualizar: solo el dueño original y manteniendo al menos 2 participantes
+      // Actualizar: solo el dueño original, manteniendo al menos 2 participantes y respetando las reglas de cierre
       allow update: if isAuthenticated() && 
                     resource.data.ownerId == request.auth.uid &&
                     request.resource.data.ownerId == request.auth.uid &&
-                    isValidGroupData();
+                    isValidGroupData() &&
+                    canUpdateGroupCloseState();
 
       // Eliminar: solo el creador original
       allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
@@ -272,15 +297,15 @@ service cloud.firestore {
       // 3. Subcolección de gastos del grupo
       match /expenses/{expenseId} {
         allow read: if isGroupOwner(groupId);
-        allow create, update: if isGroupOwner(groupId) && isValidExpenseData();
-        allow delete: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isGroupOpen(groupId) && isValidExpenseData();
+        allow delete: if isGroupOwner(groupId) && isGroupOpen(groupId);
       }
 
       // 4. Subcolección de pagos/liquidaciones del grupo
       match /settlements/{settlementId} {
         allow read: if isGroupOwner(groupId);
-        allow create, update: if isGroupOwner(groupId) && isValidSettlementData();
-        allow delete: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isGroupOpen(groupId) && isValidSettlementData();
+        allow delete: if isGroupOwner(groupId) && isGroupOpen(groupId);
       }
     }
   }
@@ -379,6 +404,10 @@ Utilizando la librería oficial de pruebas de Firebase (`@firebase/rules-unit-te
 * **Prueba 6 (Monto no positivo en pagos):** Intentar registrar un pago con monto \$0 o negativo; la regla `isValidSettlementData()` lo rechaza.
 * **Prueba 7 (Grupo con menos de 2 participantes):** Intentar crear o actualizar un grupo con solo 1 o 0 personas en `participants`; la regla `isValidGroupData()` lo rechaza.
 * **Prueba 8 (Operaciones legítimas del dueño):** El usuario creador puede crear grupos (≥2 personas), registrar gastos válidos (>0 con participantes) y pagos legítimos con éxito total.
+* **Prueba 9 (Bloqueo de escritura en viajes cerrados):** En un grupo con `isClosed: true`, la regla `isGroupOpen(groupId)` bloquea crear, editar o borrar gastos y pagos, y `canUpdateGroupCloseState()` bloquea editar el grupo mientras siga cerrado.
+* **Prueba 10 (Compatibilidad con grupos existentes sin datos nuevos):** Un grupo creado con la versión anterior (sin los campos `isClosed` ni `hasPendingDebts`) sigue permitiendo editar el grupo y registrar, editar o borrar gastos y pagos con normalidad (`data.get('isClosed', false) != true`).
+* **Prueba 11 (Bloqueo de cierre si alguien todavía debe):** Si el grupo tiene deudas pendientes (`hasPendingDebts: true`), intentar cerrarlo (`isClosed: true`) es rechazado por la regla `canUpdateGroupCloseState()`.
+* **Prueba 12 (Solo la dueña puede cerrar y reabrir un viaje):** La dueña (`ownerId`) puede cerrar un viaje liquidado (`isClosed: true`, `hasPendingDebts: false`) y volver a abrirlo (`isClosed: false`), mientras que cualquier otro usuario recibe `PERMISSION_DENIED`.
 
 ---
 

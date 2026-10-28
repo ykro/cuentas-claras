@@ -129,6 +129,18 @@ Al organizar salidas sociales, viajes de fin de semana, cenas o eventos puntuale
 
 ---
 
+### HU-08: Cerrar y Reabrir un Viaje Liquidado
+> **Como** organizadora,  
+> **quiero** cerrar un viaje cuando todos quedan a mano y moverlo a una sección separada en modo solo lectura,  
+> **para** mantener limpia mi lista de grupos activos y evitar anotar gastos por error en un viaje terminado.
+
+* **Criterio 8.1:** La opción "Cerrar viaje" solo está disponible cuando todos los participantes del grupo están a mano (todos los balances netos en \$0.00 y sin pagos pendientes). Si aún existen saldos pendientes, no se permite cerrar el viaje.
+* **Criterio 8.2:** Al cerrar un viaje, este deja de aparecer en la lista principal de grupos activos y pasa a la sección "Viajes cerrados", ubicada al final de la pantalla "Mis Grupos".
+* **Criterio 8.3:** Al abrir un viaje cerrado, su detalle se muestra en modo solo lectura: se pueden consultar los gastos y los saldos, pero no se muestran las acciones "Anotar gasto" ni "Marcar pagado" (ni se permite editar o eliminar gastos, pagos o participantes).
+* **Criterio 8.4:** Dentro del detalle de un viaje cerrado existe la acción "Reabrir viaje". Al seleccionarla, el viaje vuelve a la lista principal de "Mis Grupos" como grupo activo y recupera todas las acciones de edición ("Anotar gasto", "Marcar pagado" y edición del grupo).
+
+---
+
 ## 4. Pantallas y Flujos de Navegación
 
 ### Flujo Principal
