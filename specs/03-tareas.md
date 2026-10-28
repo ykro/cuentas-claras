@@ -170,3 +170,32 @@ Este documento contiene la secuencia paso a paso de las 8 tareas necesarias para
   3. Ejecuta la suite completa de pruebas unitarias y de reglas de seguridad de Firestore para confirmar 0 errores.
 * **Cómo verificarla sin saber programar:**  
   Abres la app desde tu celular (o con el simulador móvil del navegador) y compruebas que se ve y siente como una aplicación bancaria limpia; al mismo tiempo, en la terminal ves el reporte final de pruebas con **100% de pruebas aprobadas en verde**.
+
+---
+
+### - [x] Tarea 9: Cerrar y reabrir un viaje
+* **Objetivo:** Permitir cerrar un viaje cuando todos quedan a mano para moverlo a la sección "Viajes cerrados" en modo solo lectura, y poder reabrirlo cuando se necesite.
+* **Archivos que crea o modifica:**
+  * `firebase/firestore.rules`
+  * `tests/firestore.rules.test.js`
+  * `src/services/groupsService.js`
+  * `src/pages/GroupsPage.jsx`
+  * `src/pages/GroupDetailPage.jsx`
+  * `src/components/GroupCard.jsx`
+  * `src/components/ExpenseList.jsx`
+  * `src/components/SettlementList.jsx`
+* **Qué hace:**
+  1. **Empieza por las pruebas de reglas:** actualiza `firebase/firestore.rules` y agrega las Pruebas 9 a 12 en `tests/firestore.rules.test.js` (bloqueo de gastos y pagos en viajes cerrados, compatibilidad con grupos existentes sin datos nuevos, bloqueo de cierre si alguien todavía debe, y permiso exclusivo de la dueña para cerrar y reabrir). Ejecuta `npm run test:rules` para verificar que pasen en verde.
+  2. Actualiza `groupsService.js` para guardar `isClosed` y `hasPendingDebts` en el grupo, además de las funciones para cerrar y reabrir un viaje.
+  3. En `GroupsPage.jsx`, separa los grupos activos arriba y agrega al final la sección **"Viajes cerrados"** para los grupos con `isClosed: true`.
+  4. En `GroupDetailPage.jsx`, `ExpenseList.jsx` y `SettlementList.jsx`:
+     * Sincroniza `hasPendingDebts` según los saldos calculados y muestra que todos quedaron a mano cuando no hay deudas pendientes, habilitando la acción **"Cerrar viaje"**.
+     * Cuando el viaje está cerrado (`isClosed: true`), muestra el detalle en **modo solo lectura** (oculta **"Anotar Gasto"**, **"Marcar pagado"**, deshacer pagos y edición de gastos/participantes) y muestra la acción **"Reabrir viaje"**, que devuelve el grupo a la lista activa.
+* **Cómo verificarla sin saber programar:**  
+  1. Primero corro `npm run test:rules` y ves las 12 pruebas de reglas en verde.
+  2. Luego, conectados a la base de datos de prueba local, abres la app en el navegador:
+     * Creas el grupo **"Cena"** con **Carlos**.
+     * Anotas un gasto de **$20.00** pagados por ti dividido entre los dos ($10.00 cada uno).
+     * En "Saldos y Pagos", marcas como pagado a **Carlos** ($10.00) y arriba dice que **todos quedaron a mano**.
+     * Tocas **"Cerrar viaje"**: el grupo pasa a la sección **"Viajes cerrados"** al final de Mis Grupos; al abrirlo está en modo solo lectura **sin el botón "Anotar gasto"** ni "Marcar pagado".
+     * Tocas **"Reabrir viaje"** y compruebas que **"Cena"** regresa a la lista principal de grupos activos con el botón **"Anotar Gasto"** disponible otra vez.

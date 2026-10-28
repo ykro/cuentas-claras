@@ -18,10 +18,27 @@ service cloud.firestore {
         request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId;
     }
 
-    // Validación de integridad del grupo: al menos 2 personas
+    // Función auxiliar: verifica que el grupo esté abierto (compatible con grupos anteriores sin isClosed)
+    function isGroupOpen(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data.get('isClosed', false) != true;
+    }
+
+    // Validación de integridad del grupo: al menos 2 personas y tipos booleanos en campos opcionales
     function isValidGroupData() {
       return request.resource.data.participants is list &&
-             request.resource.data.participants.size() >= 2;
+             request.resource.data.participants.size() >= 2 &&
+             (!('isClosed' in request.resource.data) || request.resource.data.isClosed is bool) &&
+             (!('hasPendingDebts' in request.resource.data) || request.resource.data.hasPendingDebts is bool);
+    }
+
+    // Validación de cierre y solo lectura del grupo:
+    // 1. Si el grupo ya está cerrado, solo permite actualizarlo para reabrirlo (isClosed == false).
+    // 2. Si se intenta cerrar (isClosed == true), exige que no haya deudas pendientes (hasPendingDebts == false).
+    function canUpdateGroupCloseState() {
+      return (resource.data.get('isClosed', false) != true || request.resource.data.get('isClosed', false) == false) &&
+             (request.resource.data.get('isClosed', false) != true ||
+              (resource.data.get('hasPendingDebts', false) == false &&
+               request.resource.data.get('hasPendingDebts', false) == false));
     }
 
     // Validación de integridad de gasto: monto positivo y al menos 1 persona asignada
@@ -51,16 +68,18 @@ service cloud.firestore {
       // Leer: solo el creador del grupo
       allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
 
-      // Crear: solo si es el dueño y contiene al menos 2 participantes
+      // Crear: solo si es el dueño, contiene al menos 2 participantes y nace abierto
       allow create: if isAuthenticated() && 
                     request.resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.get('isClosed', false) == false &&
                     isValidGroupData();
 
-      // Actualizar: solo el dueño original y manteniendo al menos 2 participantes
+      // Actualizar: solo el dueño original, manteniendo al menos 2 participantes y respetando las reglas de cierre
       allow update: if isAuthenticated() && 
                     resource.data.ownerId == request.auth.uid &&
                     request.resource.data.ownerId == request.auth.uid &&
-                    isValidGroupData();
+                    isValidGroupData() &&
+                    canUpdateGroupCloseState();
 
       // Eliminar: solo el creador original
       allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
@@ -68,15 +87,15 @@ service cloud.firestore {
       // 3. Subcolección de gastos del grupo
       match /expenses/{expenseId} {
         allow read: if isGroupOwner(groupId);
-        allow create, update: if isGroupOwner(groupId) && isValidExpenseData();
-        allow delete: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isGroupOpen(groupId) && isValidExpenseData();
+        allow delete: if isGroupOwner(groupId) && isGroupOpen(groupId);
       }
 
       // 4. Subcolección de pagos/liquidaciones del grupo
       match /settlements/{settlementId} {
         allow read: if isGroupOwner(groupId);
-        allow create, update: if isGroupOwner(groupId) && isValidSettlementData();
-        allow delete: if isGroupOwner(groupId);
+        allow create, update: if isGroupOwner(groupId) && isGroupOpen(groupId) && isValidSettlementData();
+        allow delete: if isGroupOwner(groupId) && isGroupOpen(groupId);
       }
     }
   }

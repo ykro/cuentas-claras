@@ -6,7 +6,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import fs from 'node:fs';
 import path from 'node:path';
-import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 
 const PROJECT_ID = 'idea-to-app-grabacion';
 let testEnv;
@@ -198,5 +198,129 @@ describe('Reglas de Seguridad de Firestore', () => {
       toParticipantId: 'part_1',
       amount: 45.00,
     }));
+  });
+
+  it('Prueba 9: Bloquea anotar, editar o borrar gastos y pagos en un viaje cerrado', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'groups', 'grp_closed'), {
+        ...validGroupData,
+        isClosed: true,
+        hasPendingDebts: false,
+      });
+      await setDoc(doc(db, 'groups/grp_closed/expenses', 'exp_1'), {
+        description: 'Cena',
+        amount: 20.00,
+        paidById: 'part_1',
+        splitType: 'equal',
+        splits: [{ participantId: 'part_1' }, { participantId: 'part_2' }],
+      });
+      await setDoc(doc(db, 'groups/grp_closed/settlements', 'set_1'), {
+        fromParticipantId: 'part_2',
+        toParticipantId: 'part_1',
+        amount: 10.00,
+      });
+    });
+
+    const userAContext = testEnv.authenticatedContext(userAId);
+    const dbA = userAContext.firestore();
+
+    // No puede anotar ni modificar ni borrar gastos
+    await assertFails(addDoc(collection(dbA, 'groups/grp_closed/expenses'), {
+      description: 'Gasto nuevo en viaje cerrado',
+      amount: 15.00,
+      paidById: 'part_1',
+      splitType: 'equal',
+      splits: [{ participantId: 'part_1' }, { participantId: 'part_2' }],
+    }));
+    await assertFails(updateDoc(doc(dbA, 'groups/grp_closed/expenses', 'exp_1'), {
+      amount: 30.00,
+    }));
+    await assertFails(deleteDoc(doc(dbA, 'groups/grp_closed/expenses', 'exp_1')));
+
+    // No puede registrar ni borrar pagos
+    await assertFails(addDoc(collection(dbA, 'groups/grp_closed/settlements'), {
+      fromParticipantId: 'part_2',
+      toParticipantId: 'part_1',
+      amount: 10.00,
+    }));
+    await assertFails(deleteDoc(doc(dbA, 'groups/grp_closed/settlements', 'set_1')));
+
+    // Tampoco puede editar el nombre del grupo mientras siga cerrado
+    await assertFails(updateDoc(doc(dbA, 'groups', 'grp_closed'), {
+      name: 'Nombre cambiado estando cerrado',
+    }));
+  });
+
+  it('Prueba 10: Grupos existentes sin el campo isClosed siguen funcionando igual', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      // Grupo de la v1 sin isClosed ni hasPendingDebts
+      await setDoc(doc(context.firestore(), 'groups', 'grp_legacy'), validGroupData);
+    });
+
+    const userAContext = testEnv.authenticatedContext(userAId);
+    const dbA = userAContext.firestore();
+
+    await assertSucceeds(addDoc(collection(dbA, 'groups/grp_legacy/expenses'), {
+      description: 'Taxis',
+      amount: 20.00,
+      paidById: 'part_1',
+      splitType: 'equal',
+      splits: [{ participantId: 'part_1' }, { participantId: 'part_2' }],
+    }));
+
+    await assertSucceeds(addDoc(collection(dbA, 'groups/grp_legacy/settlements'), {
+      fromParticipantId: 'part_2',
+      toParticipantId: 'part_1',
+      amount: 10.00,
+    }));
+
+    await assertSucceeds(updateDoc(doc(dbA, 'groups', 'grp_legacy'), {
+      name: 'Viaje a la Playa Actualizado',
+    }));
+  });
+
+  it('Prueba 11: Rechaza cerrar un viaje si alguien todavía debe (hasPendingDebts: true)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'groups', 'grp_debt'), {
+        ...validGroupData,
+        isClosed: false,
+        hasPendingDebts: true,
+      });
+    });
+
+    const userAContext = testEnv.authenticatedContext(userAId);
+    const groupRef = doc(userAContext.firestore(), 'groups', 'grp_debt');
+
+    await assertFails(updateDoc(groupRef, { isClosed: true }));
+    await assertFails(updateDoc(groupRef, { isClosed: true, hasPendingDebts: false }));
+  });
+
+  it('Prueba 12: Solo la dueña puede cerrar un viaje liquidado y volver a reabrirlo', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'groups', 'grp_settled'), {
+        ...validGroupData,
+        isClosed: false,
+        hasPendingDebts: false,
+      });
+    });
+
+    const userAContext = testEnv.authenticatedContext(userAId);
+    const userBContext = testEnv.authenticatedContext(userBId);
+
+    const groupRefA = doc(userAContext.firestore(), 'groups', 'grp_settled');
+    const groupRefB = doc(userBContext.firestore(), 'groups', 'grp_settled');
+
+    // Usuario B no puede cerrar el viaje de A
+    await assertFails(updateDoc(groupRefB, { isClosed: true }));
+
+    // La dueña A sí puede cerrar el viaje liquidado
+    await assertSucceeds(updateDoc(groupRefA, { isClosed: true }));
+
+    // Usuario B no puede reabrir el viaje de A
+    await assertFails(updateDoc(groupRefB, { isClosed: false }));
+
+    // La dueña A sí puede reabrir su viaje
+    await assertSucceeds(updateDoc(groupRefA, { isClosed: false }));
   });
 });
