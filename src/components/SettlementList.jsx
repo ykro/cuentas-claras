@@ -7,11 +7,13 @@ export default function SettlementList({
   settlements = [], 
   participants = [], 
   onMarkAsPaid, 
-  onUndoPayment 
+  onUndoPayment,
+  readOnly = false
 }) {
   const [submittingId, setSubmittingId] = useState(null);
 
   const handlePay = async (transaction) => {
+    if (readOnly) return;
     const key = `${transaction.fromId}_${transaction.toId}_${transaction.amount}`;
     setSubmittingId(key);
     try {
@@ -43,7 +45,7 @@ export default function SettlementList({
             <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             <div>
               <p className="text-sm font-semibold text-emerald-900">
-                ¡Todos están al día!
+                Todos quedaron a mano
               </p>
               <p className="text-xs text-emerald-700 mt-0.5">
                 No hay transferencias pendientes en este momento.
@@ -69,22 +71,24 @@ export default function SettlementList({
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handlePay(t)}
-                    disabled={isSubmitting}
-                    className="min-h-[44px] px-3 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200/80 flex items-center gap-1.5 transition-colors shrink-0"
-                    title="Registrar que esta persona ya transfirió"
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 stroke-[2.5] text-emerald-600" />
-                        <span>Marcar pagado</span>
-                      </>
-                    )}
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handlePay(t)}
+                      disabled={isSubmitting}
+                      className="min-h-[44px] px-3 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200/80 flex items-center gap-1.5 transition-colors shrink-0"
+                      title="Registrar que esta persona ya transfirió"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 stroke-[2.5] text-emerald-600" />
+                          <span>Marcar pagado</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -109,14 +113,16 @@ export default function SettlementList({
                   <span className="font-medium text-slate-900">{getParticipantName(s.toParticipantId)}</span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onUndoPayment(s.id)}
-                  className="min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-600 rounded-lg shrink-0"
-                  title="Deshacer pago"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => onUndoPayment(s.id)}
+                    className="min-h-[36px] min-w-[36px] flex items-center justify-center text-slate-400 hover:text-red-600 rounded-lg shrink-0"
+                    title="Deshacer pago"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

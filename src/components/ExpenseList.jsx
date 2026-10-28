@@ -2,7 +2,7 @@ import React from 'react';
 import { Receipt, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters.js';
 
-export default function ExpenseList({ expenses, participants, onEditExpense }) {
+export default function ExpenseList({ expenses, participants, onEditExpense, readOnly = false }) {
   const getPayerName = (paidById) => {
     const found = participants.find(p => p.id === paidById);
     if (!found) return 'Alguien';
@@ -29,7 +29,9 @@ export default function ExpenseList({ expenses, participants, onEditExpense }) {
           No hay gastos anotados todavía
         </h2>
         <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
-          Toca en "Anotar Gasto" para registrar el primer consumo del grupo.
+          {readOnly
+            ? 'Este viaje se cerró sin gastos registrados.'
+            : 'Toca en "Anotar Gasto" para registrar el primer consumo del grupo.'}
         </p>
       </div>
     );
@@ -42,11 +44,34 @@ export default function ExpenseList({ expenses, participants, onEditExpense }) {
           const payerName = getPayerName(expense.paidById);
           const splitLabel = getSplitLabel(expense);
 
+          if (readOnly) {
+            return (
+              <li key={expense.id}>
+                <div className="w-full min-h-[58px] p-3.5 flex items-center justify-between text-left gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 truncate">
+                      {expense.description}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">
+                      Pagó {payerName} • {splitLabel}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-base font-bold font-mono text-slate-900">
+                      {formatCurrency(expense.amount)}
+                    </span>
+                  </div>
+                </div>
+              </li>
+            );
+          }
+
           return (
             <li key={expense.id}>
               <button
                 type="button"
-                onClick={() => onEditExpense(expense)}
+                onClick={() => onEditExpense && onEditExpense(expense)}
                 className="w-full min-h-[58px] p-3.5 flex items-center justify-between text-left hover:bg-slate-50 active:bg-slate-100 transition-colors gap-3"
               >
                 <div className="flex-1 min-w-0">

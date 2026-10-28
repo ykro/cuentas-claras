@@ -8,12 +8,17 @@ import {
   Trash2, 
   X, 
   Loader2, 
-  AlertCircle
+  AlertCircle,
+  Lock,
+  RotateCcw,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   subscribeGroup, 
   updateGroup, 
-  deleteGroup 
+  deleteGroup,
+  closeGroup,
+  reopenGroup
 } from '../services/groupsService.js';
 import { 
   subscribeExpenses, 
@@ -38,6 +43,8 @@ export default function GroupDetailPage({ groupId, onBack }) {
   const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [expensesLoaded, setExpensesLoaded] = useState(false);
+  const [settlementsLoaded, setSettlementsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' | 'balances'
   
@@ -51,6 +58,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingCloseState, setIsUpdatingCloseState] = useState(false);
 
   // Suscripción al grupo, gastos y pagos en tiempo real
   useEffect(() => {
@@ -78,6 +86,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
       groupId,
       (fetchedExpenses) => {
         setExpenses(fetchedExpenses);
+        setExpensesLoaded(true);
       },
       (err) => {
         console.error('Error al obtener gastos:', err);
@@ -89,6 +98,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
       groupId,
       (fetchedSettlements) => {
         setSettlements(fetchedSettlements);
+        setSettlementsLoaded(true);
       },
       (err) => {
         console.error('Error al obtener liquidaciones:', err);
@@ -109,11 +119,55 @@ export default function GroupDetailPage({ groupId, onBack }) {
   const participants = group?.participants || [];
   const balances = calculateBalances(participants, expenses, settlements);
   const transactions = simplifyDebts(participants, expenses, settlements);
+  const isClosed = group?.isClosed === true;
+  const hasPendingDebts = transactions.length > 0;
+  const allSettled = transactions.length === 0;
+
+  // Sincronizar hasPendingDebts en el documento del grupo mientras esté abierto
+  useEffect(() => {
+    if (!group || isClosed || !expensesLoaded || !settlementsLoaded) return;
+    if (Boolean(group.hasPendingDebts) !== hasPendingDebts) {
+      updateGroup(groupId, { hasPendingDebts }).catch((err) => {
+        console.error('Error al sincronizar estado de deudas:', err);
+      });
+    }
+  }, [group, groupId, isClosed, expensesLoaded, settlementsLoaded, hasPendingDebts]);
 
   // Identificar el balance de la organizadora (Tú)
   const organizerParticipant = participants.find(p => p.isOwner);
   const organizerBalance = balances.find(b => b.id === organizerParticipant?.id);
   const organizerNetBalance = organizerBalance ? organizerBalance.netBalance : 0;
+
+  const handleCloseGroup = async () => {
+    if (!allSettled) {
+      setError('Aún hay saldos pendientes. Todos deben quedar a mano ($0.00) antes de cerrar el viaje.');
+      return;
+    }
+    setIsUpdatingCloseState(true);
+    setError('');
+    try {
+      await closeGroup(groupId);
+      onBack();
+    } catch (err) {
+      console.error('Error al cerrar viaje:', err);
+      setError('No se pudo cerrar el viaje. Verifica que todos estén a mano e inténtalo de nuevo.');
+    } finally {
+      setIsUpdatingCloseState(false);
+    }
+  };
+
+  const handleReopenGroup = async () => {
+    setIsUpdatingCloseState(true);
+    setError('');
+    try {
+      await reopenGroup(groupId);
+    } catch (err) {
+      console.error('Error al reabrir viaje:', err);
+      setError('No se pudo reabrir el viaje. Inténtalo de nuevo.');
+    } finally {
+      setIsUpdatingCloseState(false);
+    }
+  };
 
   // Guardar gasto (crear o actualizar)
   const handleSaveExpense = async (expenseData) => {
@@ -232,16 +286,61 @@ export default function GroupDetailPage({ groupId, onBack }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsSettingsOpen(true)}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
-          title="Personas y ajustes del grupo"
-          aria-label="Ajustes del grupo"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        {!isClosed && (
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
+            title="Personas y ajustes del grupo"
+            aria-label="Ajustes del grupo"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        )}
       </div>
+
+      {/* Estado de cierre o liquidación en la parte superior */}
+      {isClosed ? (
+        <div className="px-4 py-3 bg-slate-100 border-b border-slate-200/80 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-700 min-w-0">
+            <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+            <span className="truncate">Viaje cerrado · Solo lectura</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleReopenGroup}
+            disabled={isUpdatingCloseState}
+            className="min-h-[44px] px-3.5 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+          >
+            {isUpdatingCloseState ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+            ) : (
+              <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+            )}
+            <span>Reabrir viaje</span>
+          </button>
+        </div>
+      ) : allSettled ? (
+        <div className="px-4 py-3 bg-emerald-50/90 border-b border-emerald-200/80 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-900 min-w-0">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">Todos quedaron a mano</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCloseGroup}
+            disabled={isUpdatingCloseState}
+            className="min-h-[44px] px-3.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+          >
+            {isUpdatingCloseState ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Lock className="w-3.5 h-3.5" />
+            )}
+            <span>Cerrar viaje</span>
+          </button>
+        </div>
+      ) : null}
 
       {/* Selector de pestañas: Gastos vs Saldos */}
       <div className="px-4 pt-3 pb-2 bg-slate-50 border-b border-slate-200/60">
@@ -296,27 +395,31 @@ export default function GroupDetailPage({ groupId, onBack }) {
               </div>
             </div>
 
-            {/* Botón de Acción Principal para Anotar Gasto */}
-            <div className="mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedExpense(null);
-                  setIsExpenseFormOpen(true);
-                }}
-                className="w-full min-h-[48px] bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm text-sm"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Anotar Gasto</span>
-              </button>
-            </div>
+            {/* Botón de Acción Principal para Anotar Gasto (oculto en viajes cerrados) */}
+            {!isClosed && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedExpense(null);
+                    setIsExpenseFormOpen(true);
+                  }}
+                  className="w-full min-h-[48px] bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm text-sm"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>Anotar Gasto</span>
+                </button>
+              </div>
+            )}
 
             {/* Lista de gastos */}
             <div className="flex-1">
               <ExpenseList
                 expenses={expenses}
                 participants={group.participants}
+                readOnly={isClosed}
                 onEditExpense={(exp) => {
+                  if (isClosed) return;
                   setSelectedExpense(exp);
                   setIsExpenseFormOpen(true);
                 }}
@@ -340,7 +443,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
               <div className="text-2xl sm:text-3xl font-extrabold font-mono tracking-tight mt-1">
                 {organizerNetBalance > 0 && `Te deben ${formatCurrency(organizerNetBalance)}`}
                 {organizerNetBalance < 0 && `Debes ${formatCurrency(Math.abs(organizerNetBalance))}`}
-                {organizerNetBalance === 0 && 'Estás al día ($0.00)'}
+                {organizerNetBalance === 0 && (allSettled ? 'Todos quedaron a mano ($0.00)' : 'Estás al día ($0.00)')}
               </div>
             </div>
 
@@ -351,6 +454,7 @@ export default function GroupDetailPage({ groupId, onBack }) {
               participants={participants}
               onMarkAsPaid={handleMarkAsPaid}
               onUndoPayment={handleUndoPayment}
+              readOnly={isClosed}
             />
 
             {/* Desglose individual de todos los participantes */}

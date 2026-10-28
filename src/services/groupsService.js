@@ -36,6 +36,8 @@ export async function createGroup({ name, participants, ownerId }) {
     name: name.trim(),
     ownerId,
     currency: 'USD',
+    isClosed: false,
+    hasPendingDebts: false,
     participants: participants.map(p => ({
       id: p.id || generateParticipantId(),
       name: p.name.trim(),
@@ -121,6 +123,31 @@ export async function updateGroup(groupId, updateData) {
   const docRef = doc(db, GROUPS_COLLECTION, groupId);
   await updateDoc(docRef, {
     ...updateData,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Cierra un viaje liquidado (modo solo lectura).
+ */
+export async function closeGroup(groupId) {
+  if (!groupId) throw new Error('ID de grupo no proporcionado');
+  const docRef = doc(db, GROUPS_COLLECTION, groupId);
+  await updateDoc(docRef, {
+    isClosed: true,
+    hasPendingDebts: false,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Reabre un viaje cerrado para volver a editarlo.
+ */
+export async function reopenGroup(groupId) {
+  if (!groupId) throw new Error('ID de grupo no proporcionado');
+  const docRef = doc(db, GROUPS_COLLECTION, groupId);
+  await updateDoc(docRef, {
+    isClosed: false,
     updatedAt: serverTimestamp(),
   });
 }
