@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
@@ -16,6 +17,16 @@ export const isFirebaseConfigured = Boolean(
 );
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
+// App Check: el proyecto de la demo solo acepta pedidos a Firestore desde esta app.
+// Sin la variable (o con la base de datos de prueba local) no se activa.
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+if (appCheckSiteKey && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export const auth = getAuth(app);
 // Base de datos con nombre (por ejemplo cuentas-claras); sin la variable usa (default)

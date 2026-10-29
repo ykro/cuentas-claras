@@ -27,7 +27,7 @@ npm test
 
 `npm test` corre las pruebas de saldos y del mensaje de WhatsApp. `npm run test:rules` corre las de las reglas de Firestore y necesita Java 21.
 
-Para usarla con tu propio Firebase, copia `.env.example` a `.env` y llénalo con los valores de tu app web de Firebase. Después pon tu proyecto en `.firebaserc` (ahí está el de la demo). La demo usa una base de Firestore con nombre, `cuentas-claras`: si tú usas la base `(default)`, deja vacío `VITE_FIREBASE_DATABASE_ID` y quita la línea `database` de `firebase.json`. Luego corre:
+Para usarla con tu propio Firebase, copia `.env.example` a `.env` y llénalo con los valores de tu app web de Firebase. Después pon tu proyecto en `.firebaserc` (ahí está el de la demo). La demo usa una base de Firestore con nombre, `cuentas-claras`: si tú usas la base `(default)`, deja vacío `VITE_FIREBASE_DATABASE_ID` y quita la línea `database` de `firebase.json`. `VITE_FIREBASE_APPCHECK_SITE_KEY` solo hace falta si tu proyecto exige App Check en Firestore (el de la demo lo exige). Luego corre:
 
 ```
 npm run dev
