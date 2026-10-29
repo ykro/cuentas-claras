@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 
-const PROJECT_ID = 'idea-to-app-grabacion';
+const PROJECT_ID = 'ai-experiments-487722';
 let testEnv;
 
 beforeAll(async () => {

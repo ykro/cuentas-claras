@@ -14,7 +14,7 @@ Andrea organiza los gastos de un viaje con sus amigos y quiere saber quién le d
 
 ## Verlo en vivo
 
-https://cuentas-claras-swart.vercel.app es la versión de demostración del curso. Se construyó con la misma spec, así que puede verse un poco distinta de la del video.
+https://cuentas-claras-app-gamma.vercel.app es la app del video, publicada desde este repositorio. Entras con tu cuenta de Google.
 
 ## Correrlo en tu computadora
 
@@ -27,7 +27,7 @@ npm test
 
 `npm test` corre las pruebas de saldos y del mensaje de WhatsApp. `npm run test:rules` corre las de las reglas de Firestore y necesita Java 21.
 
-Para usarla con tu propio Firebase, copia `.env.example` a `.env` y llénalo con los valores de tu app web de Firebase. Después cambia el proyecto en `.firebaserc`: ahí quedó el proyecto que se usó para grabar, que ya no está activo. Luego corre:
+Para usarla con tu propio Firebase, copia `.env.example` a `.env` y llénalo con los valores de tu app web de Firebase. Después pon tu proyecto en `.firebaserc` (ahí está el de la demo). La demo usa una base de Firestore con nombre, `cuentas-claras`: si tú usas la base `(default)`, deja vacío `VITE_FIREBASE_DATABASE_ID` y quita la línea `database` de `firebase.json`. Luego corre:
 
 ```
 npm run dev

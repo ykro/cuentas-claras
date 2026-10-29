@@ -18,7 +18,8 @@ export const isFirebaseConfigured = Boolean(
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Base de datos con nombre (por ejemplo cuentas-claras); sin la variable usa (default)
+export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
 
 if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   try {

@@ -1,5 +1,6 @@
 {
   "firestore": {
+    "database": "cuentas-claras",
     "rules": "firebase/firestore.rules"
   },
   "emulators": {
