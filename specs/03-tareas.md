@@ -56,7 +56,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 4 — Inicio de sesión con Google
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** pantalla de bienvenida con un solo botón, entrada con Google, pantalla "Mis grupos" vacía y botón para cerrar sesión.
 - **Crea:** `src/components/Welcome.jsx` y `src/components/GroupsScreen.jsx` (vacía por ahora); amplía `src/lib/firebase.js` (entrar y salir con Google) y `src/App.jsx` (elige qué pantalla mostrar según la sesión).
 - **Verificación:** en http://localhost:5173 ves **Cuentas Claras** con el botón **"Continuar con Google"**; al elegir tu cuenta llegas a **"Mis grupos"** vacía con el botón **"Nuevo grupo"**; al recargar la página sigues dentro, y al tocar **"Cerrar sesión"** vuelves a la bienvenida.
