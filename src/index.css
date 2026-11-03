@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+/* Light mode only: banking-style palette. */
+@theme {
+  --color-credit: #15803d; /* green: money owed to you */
+  --color-debt: #dc6b6b; /* soft red: money you owe */
+  --color-ink: #0f172a; /* dark neutral: totals */
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  background-color: #f8fafc;
+  color: var(--color-ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
