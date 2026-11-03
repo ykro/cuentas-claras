@@ -47,7 +47,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 3 — Preparar Firebase
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** conecta el proyecto con Firebase (plan Spark gratuito), activa el inicio de sesión con Google, crea la base de datos Firestore `(default)`, llena `.env` y publica las reglas de seguridad.
 - **Crea:** `.env` (con las claves públicas de Firebase; nunca se sube a git), `.firebaserc`, `firebase.json` y `firestore.rules` (copiadas tal cual de la sección 4 del plan); agrega `firebase-tools` a `package.json`. Tú solo haces los clics que pida la consola de Firebase (crear proyecto y activar Google).
 - **Verificación:** corro `npx firebase deploy --only firestore:rules` y recargo http://localhost:5173: el aviso **"Falta conectar Firebase"** ya no aparece; en la consola de Firebase, en Firestore → Reglas, ves las reglas publicadas con la fecha de hoy, y te muestro que `git status` no lista `.env`.

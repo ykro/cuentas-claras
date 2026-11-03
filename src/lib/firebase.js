@@ -1,5 +1,6 @@
-// Firebase connection. For now it only checks whether the configuration exists in .env.
-// The Firebase SDK itself is added in task 3.
+// Firebase connection. Reads the public web configuration from .env (never hard-coded).
+// Sign-in with Google is added in task 4.
+import { initializeApp } from 'firebase/app';
 
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,3 +12,6 @@ export const firebaseConfig = {
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(
   (value) => typeof value === 'string' && value.trim() !== '',
 );
+
+// Only start Firebase when the configuration is complete.
+export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;

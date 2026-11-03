@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/groups/$(groupId);
+    }
+
+    function groupExists(groupId) {
+      return exists(groupPath(groupId));
+    }
+
+    function getGroupData(groupId) {
+      return get(groupPath(groupId)).data;
+    }
+
+    function isGroupOwner(groupId) {
+      return isSignedIn()
+        && groupExists(groupId)
+        && getGroupData(groupId).ownerId == request.auth.uid;
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasOnly([
+          'ownerId',
+          'name',
+          'currency',
+          'memberIds',
+          'members',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isOwner(data.ownerId)
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && data.currency == 'USD'
+        && data.memberIds is list
+        && data.memberIds.size() >= 2
+        && data.memberIds.size() <= 50
+        && data.members is list
+        && data.members.size() == data.memberIds.size()
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidExpense(data, groupId) {
+      let group = getGroupData(groupId);
+      return data.keys().hasOnly([
+          'ownerId',
+          'description',
+          'amountCents',
+          'paidByMemberId',
+          'splitMode',
+          'participantIds',
+          'splitsCents',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isOwner(data.ownerId)
+        && data.description is string
+        && data.description.size() >= 1
+        && data.description.size() <= 140
+        && data.amountCents is int
+        && data.amountCents > 0
+        && data.amountCents <= 100000000
+        && data.paidByMemberId is string
+        && data.paidByMemberId in group.memberIds
+        && data.splitMode in ['equal_all', 'equal_subset', 'exact']
+        && data.participantIds is list
+        && data.participantIds.size() >= 1
+        && data.participantIds.size() <= group.memberIds.size()
+        && group.memberIds.hasAll(data.participantIds)
+        && data.splitsCents is map
+        && data.splitsCents.keys().size() == data.participantIds.size()
+        && data.splitsCents.keys().hasOnly(data.participantIds)
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidPayment(data, groupId) {
+      let group = getGroupData(groupId);
+      return data.keys().hasOnly([
+          'ownerId',
+          'fromMemberId',
+          'toMemberId',
+          'amountCents',
+          'createdAt'
+        ])
+        && isOwner(data.ownerId)
+        && data.fromMemberId is string
+        && data.toMemberId is string
+        && data.fromMemberId != data.toMemberId
+        && data.fromMemberId in group.memberIds
+        && data.toMemberId in group.memberIds
+        && data.amountCents is int
+        && data.amountCents > 0
+        && data.amountCents <= 100000000
+        && data.createdAt is string;
+    }
+
+    match /groups/{groupId} {
+      allow read: if isOwner(resource.data.ownerId);
+
+      allow create: if isValidGroup(request.resource.data);
+
+      allow update: if isOwner(resource.data.ownerId)
+        && isValidGroup(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if isOwner(resource.data.ownerId);
+
+      match /expenses/{expenseId} {
+        allow read: if isOwner(resource.data.ownerId) && isGroupOwner(groupId);
+
+        allow create: if isGroupOwner(groupId)
+          && isValidExpense(request.resource.data, groupId);
+
+        allow update: if isOwner(resource.data.ownerId)
+          && isGroupOwner(groupId)
+          && isValidExpense(request.resource.data, groupId)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.createdAt == resource.data.createdAt;
+
+        allow delete: if isOwner(resource.data.ownerId);
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isOwner(resource.data.ownerId) && isGroupOwner(groupId);
+
+        allow create: if isGroupOwner(groupId)
+          && isValidPayment(request.resource.data, groupId);
+
+        allow update: if false;
+
+        allow delete: if isOwner(resource.data.ownerId);
+      }
+    }
+  }
+}
+
