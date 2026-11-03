@@ -133,6 +133,16 @@ export function formatCents(cents, { sign = false } = {}) {
 }
 
 /**
+ * Balance for display with a real minus sign: 10700 -> "+$107.00", -1900 -> "−$19.00", 0 -> "$0.00".
+ * @param {number} cents
+ * @returns {string}
+ */
+export function formatBalance(cents) {
+  if (cents < 0) return `\u2212${formatCents(-cents)}`;
+  return formatCents(cents, { sign: true });
+}
+
+/**
  * Converts what the user types ("54", "54.5", "10.99", "$1,200.00") into cents,
  * without floating point. Returns null if it is not a valid amount with up to 2 decimals.
  * @param {string} text
@@ -146,3 +156,4 @@ export function parseAmountToCents(text) {
   const cents = Number((match[2] ?? '').padEnd(2, '0'));
   return dollars * 100 + cents;
 }
+

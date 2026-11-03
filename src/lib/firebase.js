@@ -196,6 +196,41 @@ export async function deleteExpense(groupId, expenseId) {
   }
 }
 
+// ---------- Payments (Firestore) ----------
+
+/** Live list of a group's registered payments. */
+export function watchPayments(uid, groupId, onChange, onError) {
+  return onSnapshot(
+    ownedSubcollection(uid, groupId, 'payments'),
+    (snapshot) => onChange(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (error) => onError?.(new Error(dataErrorMessage(error.code, 'cargar los pagos'))),
+  );
+}
+
+/** @param {{ fromMemberId: string, toMemberId: string, amountCents: number }} payment */
+export async function createPayment(uid, groupId, payment) {
+  try {
+    await addDoc(collection(db, 'groups', groupId, 'payments'), {
+      ownerId: uid,
+      fromMemberId: payment.fromMemberId,
+      toMemberId: payment.toMemberId,
+      amountCents: payment.amountCents,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    throw new Error(dataErrorMessage(error.code, 'registrar el pago'));
+  }
+}
+
+/** Payments cannot be edited (security rules): to fix one, it is deleted. */
+export async function deletePayment(groupId, paymentId) {
+  try {
+    await deleteDoc(doc(db, 'groups', groupId, 'payments', paymentId));
+  } catch (error) {
+    throw new Error(dataErrorMessage(error.code, 'deshacer el pago'));
+  }
+}
+
 // Each message says what happened and how to fix it.
 function dataErrorMessage(code, action) {
   switch (code) {

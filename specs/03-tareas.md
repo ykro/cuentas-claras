@@ -83,7 +83,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 7 — Saldos, pagos y WhatsApp
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** pestaña **Saldos** con "Te deben", saldo por persona en verde o rojo suave, "Quién le paga a quién", marcar pagos (y deshacerlos) y enviar el resumen por WhatsApp o copiarlo.
 - **Crea:** `src/components/BalancesView.jsx` y `src/lib/whatsapp.js` (arma el mensaje y el enlace `wa.me`); agrega a `src/lib/firebase.js` las funciones para guardar y borrar pagos, y los pagos aparecen en la pestaña Gastos.
 - **Verificación:** arriba dice **Te deben $107.00**; ves **Yo +$107.00** en verde y **Carlos −$19.00, Beto −$60.00, Luisa −$28.00** en rojo suave; "Quién le paga a quién" muestra exactamente **Beto → Yo $60.00, Luisa → Yo $28.00, Carlos → Yo $19.00**; al marcar pagado el de Beto, arriba cambia a **Te deben $47.00**, Beto queda **A mano $0.00** y en Gastos aparece **"Pago Beto → Yo $60.00"**; al deshacerlo vuelve a **$107.00**; **"Enviar por WhatsApp"** abre WhatsApp con el texto que incluye **Viaje a Antigua**, **Total: $274.00** y los 3 pagos.

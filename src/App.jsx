@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { PlugZap } from 'lucide-react';
-import { isFirebaseConfigured, watchExpenses, watchGroups, watchSession } from './lib/firebase.js';
+import {
+  createPayment,
+  deletePayment,
+  isFirebaseConfigured,
+  watchExpenses,
+  watchGroups,
+  watchPayments,
+  watchSession,
+} from './lib/firebase.js';
 import Welcome from './components/Welcome.jsx';
 import GroupsScreen from './components/GroupsScreen.jsx';
 import GroupForm from './components/GroupForm.jsx';
@@ -39,6 +47,11 @@ export default function App() {
   // Expenses of the open group. undefined = still loading.
   const [expenses, setExpenses] = useState(undefined);
   const [expensesError, setExpensesError] = useState('');
+  // Payments of the open group. undefined = still loading.
+  const [payments, setPayments] = useState(undefined);
+  const [paymentsError, setPaymentsError] = useState('');
+  // Group detail tab: 'balances' (default) | 'history'.
+  const [detailTab, setDetailTab] = useState('balances');
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
@@ -66,6 +79,13 @@ export default function App() {
     return watchExpenses(user.uid, openGroupId, setExpenses, (err) => setExpensesError(err.message));
   }, [user, openGroupId]);
 
+  useEffect(() => {
+    setPayments(undefined);
+    setPaymentsError('');
+    if (!user || !openGroupId) return undefined;
+    return watchPayments(user.uid, openGroupId, setPayments, (err) => setPaymentsError(err.message));
+  }, [user, openGroupId]);
+
   if (!isFirebaseConfigured) return <MissingFirebaseNotice />;
   if (user === undefined) {
     return (
@@ -78,13 +98,17 @@ export default function App() {
 
   const goToGroups = () => setScreen({ name: 'groups' });
   const goToGroup = (groupId) => setScreen({ name: 'group', groupId });
+  const openGroupFromList = (groupId) => {
+    setDetailTab('balances');
+    goToGroup(groupId);
+  };
   const groupsScreen = (
     <GroupsScreen
       user={user}
       groups={groups}
       error={groupsError}
       onNewGroup={() => setScreen({ name: 'groupForm' })}
-      onOpenGroup={goToGroup}
+      onOpenGroup={openGroupFromList}
     />
   );
 
@@ -114,11 +138,16 @@ export default function App() {
     <GroupDetail
       group={group}
       expenses={expenses}
-      error={expensesError}
+      payments={payments}
+      error={expensesError || paymentsError}
+      tab={detailTab}
+      onTabChange={setDetailTab}
       onBack={goToGroups}
       onEditGroup={() => setScreen({ name: 'groupForm', groupId: group.id })}
       onNewExpense={() => setScreen({ name: 'expenseForm', groupId: group.id })}
       onOpenExpense={(expenseId) => setScreen({ name: 'expenseForm', groupId: group.id, expenseId })}
+      onMarkPaid={(transfer) => createPayment(user.uid, group.id, transfer)}
+      onUndoPayment={(paymentId) => deletePayment(group.id, paymentId)}
     />
   );
 
