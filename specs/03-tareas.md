@@ -38,7 +38,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 2 — Cálculo de saldos y pruebas
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** escribe el motor de cuentas en centavos (reparto de cada gasto, saldo de cada persona, mínimo de pagos) y sus pruebas automáticas, sin pantallas todavía.
 - **Crea:** `src/lib/balances.js` y `tests/balances.test.js` (con los datos de prueba de arriba, `$10.00` entre 3 = `$3.34`, `$3.33`, `$3.33`, el caso "Ana le debe a Luis y Luis a Carla = un solo pago de Ana a Carla", un pago registrado que mueve los saldos y el bloqueo para quitar a una persona con movimientos).
 - **Verificación:** corro `npx vitest --ui tests/balances.test.js`, se abre la página de pruebas en el navegador y ves todas en verde (0 fallidas), incluida la que comprueba **Yo +$107.00, Carlos −$19.00, Beto −$60.00, Luisa −$28.00** y los 3 pagos **Beto → Yo $60.00, Luisa → Yo $28.00, Carlos → Yo $19.00**.
