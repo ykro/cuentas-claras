@@ -74,7 +74,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 6 — Gastos
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** pantalla del grupo con su total y la pestaña **Gastos**; anotar, editar y borrar gastos con las tres formas de división.
 - **Crea:** `src/components/GroupDetail.jsx` (encabezado, total y pestañas) y `src/components/ExpenseForm.jsx`; agrega a `src/lib/firebase.js` las funciones para guardar y borrar gastos.
 - **Verificación:** en **"Viaje a Antigua"** anotas los 3 gastos de los datos de prueba (**Hospedaje $180** pagado por Yo entre todos, **Cena del viernes $54** pagada por Carlos sin Beto, **Gasolina $40** pagada por Luisa con montos exactos); si en Gasolina pones Luisa $0 ves **"Faltan $5.00"** y no se guarda hasta poner $5; el encabezado muestra **$274.00**; editas Gasolina a $41 (total **$275.00**) y la regresas a $40; anotas **"Chicle $1"**, lo borras y vuelve a **$274.00**; al intentar quitar a **Beto** del grupo, te avisa que primero hay que ajustar sus gastos.

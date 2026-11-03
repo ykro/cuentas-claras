@@ -9,9 +9,9 @@ const inputClass =
 
 /**
  * Create or edit a group. The first person is always the organizer and cannot be removed.
- * @param {{ user: object, group?: object, onDone: () => void }} props
+ * @param {{ user: object, group?: object, onDone: () => void, onDeleted: () => void }} props
  */
-export default function GroupForm({ user, group, onDone }) {
+export default function GroupForm({ user, group, onDone, onDeleted }) {
   const isEditing = Boolean(group);
   const existingIds = group?.memberIds ?? [];
 
@@ -93,7 +93,7 @@ export default function GroupForm({ user, group, onDone }) {
     setIsDeleting(true);
     try {
       await deleteGroup(user.uid, group.id);
-      onDone();
+      onDeleted();
     } catch (err) {
       setError(err.message);
       setIsDeleting(false);
@@ -106,7 +106,7 @@ export default function GroupForm({ user, group, onDone }) {
         <button
           type="button"
           onClick={onDone}
-          aria-label="Volver a Mis grupos"
+          aria-label={isEditing ? `Volver a ${group.name}` : 'Volver a Mis grupos'}
           className="-ml-3 flex h-11 w-11 items-center justify-center rounded-xl active:bg-slate-100"
         >
           <ArrowLeft className="h-6 w-6" aria-hidden="true" />

@@ -10,6 +10,7 @@ import {
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   getFirestore,
@@ -153,6 +154,45 @@ export async function deleteGroup(uid, groupId) {
     await last.commit();
   } catch (error) {
     throw new Error(dataErrorMessage(error.code, 'borrar el grupo'));
+  }
+}
+
+// ---------- Expenses (Firestore) ----------
+
+/**
+ * @param {{ description: string, amountCents: number, paidByMemberId: string, splitMode: string,
+ *   participantIds: string[], splitsCents: Record<string, number> }} fields
+ */
+export async function createExpense(uid, groupId, fields) {
+  const now = new Date().toISOString();
+  try {
+    await addDoc(collection(db, 'groups', groupId, 'expenses'), {
+      ownerId: uid,
+      ...fields,
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    throw new Error(dataErrorMessage(error.code, 'guardar el gasto'));
+  }
+}
+
+export async function updateExpense(groupId, expenseId, fields) {
+  try {
+    await updateDoc(doc(db, 'groups', groupId, 'expenses', expenseId), {
+      ...fields,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    throw new Error(dataErrorMessage(error.code, 'guardar el gasto'));
+  }
+}
+
+export async function deleteExpense(groupId, expenseId) {
+  try {
+    await deleteDoc(doc(db, 'groups', groupId, 'expenses', expenseId));
+  } catch (error) {
+    throw new Error(dataErrorMessage(error.code, 'borrar el gasto'));
   }
 }
 
