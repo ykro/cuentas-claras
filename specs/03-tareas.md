@@ -92,7 +92,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 8 — Revisión final en el celular y reglas
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** deja la app instalable en el celular, la revisa con el pulgar en un teléfono real y prueba las reglas de seguridad con el emulador local de Firebase (Java 21).
 - **Crea:** `public/manifest.webmanifest`, `public/icon.svg` y `tests/firestore.rules.test.js` (los 8 casos de la sección 6.2 del plan); enlaza el manifiesto en `index.html`. Para abrirla desde el celular agrego la IP de tu computadora a los dominios autorizados de Firebase Authentication. Si alguna prueba obliga a corregir `firestore.rules`, vuelvo a publicarlas con `npx firebase deploy --only firestore:rules`.
 - **Verificación:** corro `npx firebase emulators:exec --only firestore "npx vitest run tests/firestore.rules.test.js"` y te muestro el resumen con todas las pruebas aprobadas y 0 fallidas; luego corro `npm run dev -- --host`, abres en tu celular (misma red wifi) la dirección que te doy, entras con Google, ves **"Viaje a Antigua"** con **Te deben $107.00** legible sin hacer zoom y un solo botón principal por pantalla, la agregas a la pantalla de inicio con el ícono de **Cuentas Claras**, y en una ventana privada de la computadora, entrando con otra cuenta de Google, **"Viaje a Antigua"** no aparece.
