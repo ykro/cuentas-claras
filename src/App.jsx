@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { PlugZap } from 'lucide-react';
-import { isFirebaseConfigured, watchSession } from './lib/firebase.js';
+import { isFirebaseConfigured, watchGroups, watchSession } from './lib/firebase.js';
 import Welcome from './components/Welcome.jsx';
 import GroupsScreen from './components/GroupsScreen.jsx';
+import GroupForm from './components/GroupForm.jsx';
 
 function MissingFirebaseNotice() {
   return (
@@ -25,11 +26,28 @@ function MissingFirebaseNotice() {
 export default function App() {
   // undefined = still checking the session; null = signed out.
   const [user, setUser] = useState(undefined);
+  // undefined = still loading the groups.
+  const [groups, setGroups] = useState(undefined);
+  const [groupsError, setGroupsError] = useState('');
+  // { name: 'groups' } | { name: 'groupForm', groupId?: string }
+  const [screen, setScreen] = useState({ name: 'groups' });
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
-    return watchSession(setUser);
+    return watchSession((nextUser) => {
+      setUser(nextUser);
+      setScreen({ name: 'groups' });
+    });
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setGroups(undefined);
+      return undefined;
+    }
+    setGroupsError('');
+    return watchGroups(user.uid, setGroups, (err) => setGroupsError(err.message));
+  }, [user]);
 
   if (!isFirebaseConfigured) return <MissingFirebaseNotice />;
   if (user === undefined) {
@@ -40,5 +58,33 @@ export default function App() {
     );
   }
   if (!user) return <Welcome />;
-  return <GroupsScreen user={user} />;
+
+  const goToGroups = () => setScreen({ name: 'groups' });
+
+  if (screen.name === 'groupForm') {
+    const group = screen.groupId ? groups?.find((g) => g.id === screen.groupId) : undefined;
+    // The group was opened for editing but no longer exists (e.g. it was just deleted).
+    if (screen.groupId && !group) {
+      return (
+        <GroupsScreen
+          user={user}
+          groups={groups}
+          error={groupsError}
+          onNewGroup={() => setScreen({ name: 'groupForm' })}
+          onOpenGroup={(groupId) => setScreen({ name: 'groupForm', groupId })}
+        />
+      );
+    }
+    return <GroupForm key={screen.groupId ?? 'new'} user={user} group={group} onDone={goToGroups} />;
+  }
+
+  return (
+    <GroupsScreen
+      user={user}
+      groups={groups}
+      error={groupsError}
+      onNewGroup={() => setScreen({ name: 'groupForm' })}
+      onOpenGroup={(groupId) => setScreen({ name: 'groupForm', groupId })}
+    />
+  );
 }

@@ -65,7 +65,7 @@ Grupo **"Viaje a Antigua"** con 4 personas: **Yo** (la organizadora, primera de 
 
 ## Tarea 5 — Grupos y personas
 
-- [ ] **Hecho**
+- [x] **Hecho**
 - **Qué hace:** crear, editar y borrar grupos; agregar, renombrar y quitar personas, cada una con su `id` fijo. La organizadora es siempre la primera persona del grupo.
 - **Crea:** `src/components/GroupForm.jsx`; completa `src/components/GroupsScreen.jsx` (lista de grupos) y agrega a `src/lib/firebase.js` las funciones para guardar y borrar grupos (el borrado elimina también sus gastos y pagos).
 - **Verificación:** creas **"Viaje a Antigua"** con **Yo, Carlos, Beto, Luisa** y la lista muestra **"Viaje a Antigua · 4 personas · $0.00"**; un grupo con solo **Yo** o con **Carlos** repetido no se deja guardar y explica por qué; renombras **Carlos → Carlitos**, guardas y lo regresas a **Carlos**; creas **"Grupo de prueba"** con **Ana** y **Luis**, lo borras tras confirmar y desaparece; al recargar, **"Viaje a Antigua"** sigue ahí.
