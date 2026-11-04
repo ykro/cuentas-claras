@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "emulators": "firebase emulators:start --only firestore --project idea-to-app-grabacion",
+    "dev:emulators": "vite --mode emulators",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

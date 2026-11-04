@@ -10,6 +10,7 @@ import {
 import {
   addDoc,
   collection,
+  connectFirestoreEmulator,
   deleteDoc,
   doc,
   getDocs,
@@ -36,6 +37,13 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(
 export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
+
+// Local test database: `npm run dev:emulators` (Vite mode "emulators") points Firestore at the
+// emulator started with `npm run emulators`. Sign-in still uses the real Google account.
+export const usesFirestoreEmulator = import.meta.env.MODE === 'emulators';
+if (db && usesFirestoreEmulator) {
+  connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 /** Calls back with the signed-in user (or null) every time the session changes. */
 export function watchSession(callback) {
